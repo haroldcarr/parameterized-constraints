@@ -29,6 +29,6 @@ spec  = do
         ,"useApply2/apply2: got a Left: apply2: throwError \"err\""])
 
     it "IOerr" $ (s1'',w1'') `shouldBe`
-      ( "apply2/pure: pure \"IOerr\""
-      , ["useApply2/apply1: got a Right"
+      ( "IOerr"
+      , ["useApply2/apply1: got a Left: " -- the space is mzero for Text
         ,"useApply2/apply2: got a Left: apply2 IOerr/Left/throwError: IOerr: openFile: does not exist (No such file or directory)"])
