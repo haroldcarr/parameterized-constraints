@@ -13,9 +13,9 @@ default (Text)
 
 spec :: Spec
 spec  = do
-  (_,s1  ,w1   ) <- runIO $ doIt2 twoFuns "expect Right"
-  (_,s1' ,w1'  ) <- runIO $ doIt2 twoFuns "err"
-  (_,s1'',w1'' ) <- runIO $ doIt2 twoFuns "IOerr"
+  (s1  ,w1   ) <- runIO $ doIt2 twoFuns "expect Right"
+  (s1' ,w1'  ) <- runIO $ doIt2 twoFuns "err"
+  (s1'',w1'' ) <- runIO $ doIt2 twoFuns "IOerr"
 
   describe "twoFuns" $ do
     it "expect Right" $ (s1,w1) `shouldBe`

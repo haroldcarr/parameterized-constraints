@@ -30,14 +30,15 @@ data Apply2 (c1 :: Constraint) (c2 :: Constraint) (m :: * -> *) (a :: *)
             }
 
 {-# ANN doIt2 ("HLint: ignore Eta reduce"::String) #-}
-doIt2 :: (c1, c2, Monad m) => Apply2 c1 c2 m a -> a -> m ((), a, [Text])
-doIt2 apply a =
-  runRWST (useApply2 apply) "one" a
+doIt2 :: (c1, c2, Monad m) => Apply2 c1 c2 m a -> a -> m (a, [Text])
+doIt2 apply a = do
+  (_,s,w) <- runRWST (useApply2 apply) () a
+  pure (s,w)
 
 useApply2
  :: (c1, c2, Monad m)
  => Apply2 c1 c2 m a
- -> RWST Text [Text] a m ()
+ -> RWST () [Text] a m ()
 useApply2 (Apply2 apply1 apply2) = do
   a1   <- get -- USE THE INITIAL STATE AS INPUT TO BOTH FUNCTIONS
   res1 <- lift $ runExceptT (apply1 a1)
