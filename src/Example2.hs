@@ -29,8 +29,10 @@ data Apply2 (c1 :: Constraint) (c2 :: Constraint) (m :: * -> *) (a :: *)
 
 {-
 data ApplyX (cs :: [Constraint] (m :: * -> *) (a :: *)
-   = ApplyX { apx :: ( c1, CisMember1 c1 cs
-                     , c2, CisMember1 c2 cs ) => ApplyFn1 m a }
+   = ApplyX { ap1 :: ( c1, CisMember1 c1 cs
+                     , c2, CisMember1 c2 cs ) => ApplyFn1 m a
+            , ap2 :: ( c3, CisMember1 c3 cs ) => ApplyFn1 m a
+            }
 -}
 
 {-# ANN doIt2 ("HLint: ignore Eta reduce"::String) #-}
