@@ -32,32 +32,42 @@ data Apply2 (c1 :: Constraint) (c2 :: Constraint) (m :: * -> *) (a :: *)
 doIt2 :: (c1, c2, Monad m) => Apply2 c1 c2 m a -> a -> m ( ((), a, [Text])
                                                          , ((), a, [Text]) )
 doIt2 apply a = do
-  one <- runRWST (useApply1 apply) "one" a
---  two <- runRWST (useApply2 apply) "two" a
---  pure (one, two)
-  pure (one, one)
+  one <- runRWST (useApply2 apply) "one" a
+  two <- runRWST (useApply2 apply) "two" a
+  pure (one, two)
 
-useApply1
+useApply2
  :: (c1, c2, Monad m)
  => Apply2 c1 c2 m a
  -> RWST Text [Text] a m ()
-useApply1 (Apply2 apply1 _) = do
-  a   <- get
-  res <- lift $ runExceptT (apply1 a)
-  case res of
+useApply2 (Apply2 apply1 apply2) = do
+  a1   <- get
+  res1 <- lift $ runExceptT (apply1 a1)
+  case res1 of
     Left  l ->
-      tell ["useApply1: got a Left: " <> l]
+      tell ["useApply2/apply1: got a Left: " <> l]
     Right r -> do
       put r
-      tell ["useApply1: got a Right"]
+      tell ["useApply2/apply1: got a Right"]
+  -------------------------
+  a2   <- get
+  res2 <- lift $ runExceptT (apply2 a2)
+  case res2 of
+    Left  l ->
+      tell ["useApply2/apply2: got a Left: " <> l]
+    Right r -> do
+      put r
+      tell ["useApply2/apply2: got a Right"]
 
 applyPure2 :: Monad m => Apply2 ()          () m Text
 applyPure2  = Apply2 (\case
                         "err" -> throwError "applyPure2: throwError \"err\""
                         x     -> pure     $ "applyPure2: pure \"" <> x <> "\"")
-                     undefined
+                     (\case
+                        "err" -> throwError "applyPure2: throwError \"err\""
+                        x     -> pure     $ "applyPure2: pure \"" <> x <> "\"")
 
-applyIO2   ::            Apply2 (MonadIO m) () m Text
+applyIO2   ::            Apply2 (MonadIO m) (MonadIO m) m Text
 applyIO2    = Apply2
  (\x -> do
   liftIO (putStrLn "**************** applyIO2 ******************")
@@ -71,5 +81,17 @@ applyIO2    = Apply2
            throwError $ "applyIO2 IOerr/Left/throwError: " <> T.pack (show e)
     "err" -> throwError "applyIO2: throwError \"err\""
     z     -> pure     $ "applyIO2: pure \"" <> z <> "\"")
- undefined
+ (\x -> do
+  liftIO (putStrLn "**************** applyIO2 ******************")
+  case x of
+    "IOerr" -> do
+       xxx <- liftIO $ try (T.pack <$> readFile (T.unpack x))
+       case xxx of
+         Right r ->
+           pure ("IOerr/Right/pure " <> r)
+         Left  (e::SomeException) ->
+           throwError $ "applyIO2 IOerr/Left/throwError: " <> T.pack (show e)
+    "err" -> throwError "applyIO2: throwError \"err\""
+    z     -> pure     $ "applyIO2: pure \"" <> z <> "\"")
+
 

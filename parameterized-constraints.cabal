@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bd7c41d5aa116a99f69ec14ca7ebffdab4c10bb7172048151404d9671e45061f
+-- hash: 2f680fb4e8cbecf986998f7052ff0194ed3252c3c5804217a2bd65bf88a916d8
 
 name:           parameterized-constraints
 version:        0.1.0.0
@@ -15,6 +15,7 @@ build-type:     Simple
 library
   exposed-modules:
       Example
+      Example2
       ExampleWithRaftTypes.RaftExample
       ExampleWithRaftTypes.RaftTypes
       ListOfConstraints
@@ -35,6 +36,7 @@ test-suite t
   type: exitcode-stdio-1.0
   main-is: hspec.hs
   other-modules:
+      Example2Spec
       ExampleSpec
       ExampleWithRaftTypes.RaftExampleSpec
       Paths_parameterized_constraints

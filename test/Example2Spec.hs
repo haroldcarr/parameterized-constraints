@@ -23,14 +23,12 @@ applyPure2Spec  = do
 
   describe "applyPure2" $ do
     it "expect Right" $ ((s1,w1),(s2,w2)) `shouldBe`
-      ( ("applyPure2: pure \"expect Right\"",["useApply1: got a Right"])
-      , ("applyPure2: pure \"expect Right\"",["useApply1: got a Right"])
-      )
+      ( ("applyPure2: pure \"applyPure2: pure \"expect Right\"\"",["useApply2/apply1: got a Right","useApply2/apply2: got a Right"])
+      , ("applyPure2: pure \"applyPure2: pure \"expect Right\"\"",["useApply2/apply1: got a Right","useApply2/apply2: got a Right"]) )
 
     it "err" $ ((s1',w1'),(s2',w2')) `shouldBe`
-      ( ("err",["useApply1: got a Left: applyPure2: throwError \"err\""])
-      , ("err",["useApply1: got a Left: applyPure2: throwError \"err\""])
-      )
+      ( ("err",["useApply2/apply1: got a Left: applyPure2: throwError \"err\"","useApply2/apply2: got a Left: applyPure2: throwError \"err\""])
+      , ("err",["useApply2/apply1: got a Left: applyPure2: throwError \"err\"","useApply2/apply2: got a Left: applyPure2: throwError \"err\""]) )
       -- ("xxx\"",["xxx"])
 
 applyIO2Spec :: Spec
@@ -42,16 +40,13 @@ applyIO2Spec  = do
 
   describe "applyIO2" $ do
     it "expect Right" $ ((s1,w1),(s2,w2)) `shouldBe`
-      ( ("applyIO2: pure \"expect Right\"",["useApply1: got a Right"])
-      , ("applyIO2: pure \"expect Right\"",["useApply1: got a Right"])
-      )
+      ( ("applyIO2: pure \"applyIO2: pure \"expect Right\"\"",["useApply2/apply1: got a Right","useApply2/apply2: got a Right"])
+      , ("applyIO2: pure \"applyIO2: pure \"expect Right\"\"",["useApply2/apply1: got a Right","useApply2/apply2: got a Right"]) )
 
     it "err" $ ((s1',w1'),(s2',w2')) `shouldBe`
-      ( ("err",["useApply1: got a Left: applyIO2: throwError \"err\""])
-      , ("err",["useApply1: got a Left: applyIO2: throwError \"err\""])
-      )
+      ( ("err",["useApply2/apply1: got a Left: applyIO2: throwError \"err\"","useApply2/apply2: got a Left: applyIO2: throwError \"err\""])
+      , ("err",["useApply2/apply1: got a Left: applyIO2: throwError \"err\"","useApply2/apply2: got a Left: applyIO2: throwError \"err\""]) )
 
     it "IOerr" $ ((s1'',w1''),(s2'',w2'')) `shouldBe`
-      ( ("IOerr",["useApply1: got a Left: applyIO2 IOerr/Left/throwError: IOerr: openFile: does not exist (No such file or directory)"])
-      , ("IOerr",["useApply1: got a Left: applyIO2 IOerr/Left/throwError: IOerr: openFile: does not exist (No such file or directory)"])
-      )
+      ( ("IOerr",["useApply2/apply1: got a Left: applyIO2 IOerr/Left/throwError: IOerr: openFile: does not exist (No such file or directory)","useApply2/apply2: got a Left: applyIO2 IOerr/Left/throwError: IOerr: openFile: does not exist (No such file or directory)"])
+      , ("IOerr",["useApply2/apply1: got a Left: applyIO2 IOerr/Left/throwError: IOerr: openFile: does not exist (No such file or directory)","useApply2/apply2: got a Left: applyIO2 IOerr/Left/throwError: IOerr: openFile: does not exist (No such file or directory)"]) )
