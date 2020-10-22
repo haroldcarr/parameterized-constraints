@@ -13,6 +13,7 @@ module ExampleV where
 
 ------------------------------------------------------------------------------
 import           Control.Monad.Except
+import           Data.Text            as T
 import           GHC.Exts             (Constraint)
 ------------------------------------------------------------------------------
 
@@ -20,80 +21,84 @@ import           GHC.Exts             (Constraint)
 
 ------------------------------------------------------------------------------
 
-type ApplyFn1 m a = a -> m a
+type Function i m a = i -> m a
 
-type family Allc (cs :: [Constraint]) :: Constraint where
-  Allc      '[]     = ()
-  Allc (c ': cs)    = (c, Allc cs)
+type family ListOfConstraintsToConstraint (cs :: [Constraint]) :: Constraint where
+  ListOfConstraintsToConstraint        '[]   = ()
+  ListOfConstraintsToConstraint   (c ': cs)  = (c, ListOfConstraintsToConstraint cs)
 
-type family Allcc (cs :: [[Constraint]]) :: Constraint where
-  Allcc        '[]  = ()
-  Allcc (cs ': css) = (Allc cs, Allcc css)
+newtype FunctionWithConstraints cs i m a =
+  FunctionWithConstraints (ListOfConstraintsToConstraint cs => Function i m a)
 
-newtype App1 cs m a = App1 (Allc cs => ApplyFn1 m a)
+type family FunctionsWithConstraints (css :: [[Constraint]]) (i :: *) (m :: * -> *) (a :: *)
+ where
+  FunctionsWithConstraints        '[]  i m a = ()
+  FunctionsWithConstraints (cs ': css) i m a =
+    (FunctionWithConstraints cs i m a, FunctionsWithConstraints css i m a)
 
-type family AppZs (css :: [[ Constraint]]) m a where
-  AppZs        '[]  m a = ()
-  AppZs (cs ': css) m a = (App1 cs m a, AppZs css m a)
-
-data ApplyZ (css :: [ [ Constraint ] ]) (m :: * -> *) (a :: *) where
-  AZ :: AppZs css m a -> ApplyZ css m a
+data Functions (css :: [[Constraint]]) (i :: *) (m :: * -> *) (a :: *) where
+  Functions :: FunctionsWithConstraints css i m a -> Functions css i m a
 
 ------------------------------------------------------------------------------
 
-data Ix :: [k] -> * where
-  Here  ::          Ix (x ': xs)
-  There :: Ix xs -> Ix (x ': xs)
-
-doIx :: (Monad m, Allcc css) => Ix css -> ApplyZ css m a -> a -> m a
-doIx Here       (AZ (App1 f, _)) a = f a
-doIx (There ix) (AZ (_,     fs)) a = doIx ix (AZ fs) a
-
 data Nat = Z | S Nat
 
-data Ix' :: Nat -> [k] -> * where
-  Here'  ::             Ix'  'Z    (x ': xs)
-  There' :: Ix' n xs -> Ix' ('S n) (x ': xs)
+data Ix :: Nat -> [k] -> * where
+  IZ ::            Ix  'Z    (x ': xs)
+  IS :: Ix n xs -> Ix ('S n) (x ': xs)
 
 type family Lookup (n :: Nat) (xs :: [k]) :: k where
   Lookup  'Z    (x ': _xs) = x
   Lookup ('S n) (x ':  xs) = Lookup n xs
 
-type AllIx ix css = Allc (Lookup ix css)
+type NthConstraint ix css = ListOfConstraintsToConstraint (Lookup ix css)
 
-doIx' :: (Monad m, AllIx n css) => Ix' n css -> ApplyZ css m a -> a -> m a
-doIx' Here'       (AZ (App1 f, _)) a = f a
-doIx' (There' ix) (AZ (_,     fs)) a = doIx' ix (AZ fs) a
+runNthFunction
+  :: (Monad m, NthConstraint n css)
+  => Ix n css
+  -> Functions css i m a
+  -> i
+  -> m a
+runNthFunction  IZ     (Functions (FunctionWithConstraints f,  _)) i = f i
+runNthFunction (IS ix) (Functions (_                        , fs)) a =
+  runNthFunction ix (Functions fs) a
 
 ------------------------------------------------------------------------------
 
+type family ListOfListOfConstraintsToConstraint (cs :: [[Constraint]]) :: Constraint where
+  ListOfListOfConstraintsToConstraint        '[]  = ()
+  ListOfListOfConstraintsToConstraint (cs ': css) =
+    (ListOfConstraintsToConstraint cs, ListOfListOfConstraintsToConstraint css)
+
+{- For parameterized err to work, need to index the return value.
+   In that case, might as well fully generalize return value (not just Either).
 data SingL :: [k] -> * where
   SN ::             SingL      '[]
   SC :: SingL xs -> SingL (x ': xs)
 
-type family Tupfor (css :: [k]) (a :: *) :: * where
-  Tupfor      '[]  a = ()
-  Tupfor (_ ': xs) a = (a, Tupfor xs a)
+type family NTupleOf (css :: [k]) (err :: *) (a :: *) :: * where
+  NTupleOf      '[]  err a = ()
+  NTupleOf (_ ': xs) err a = (Either err a, NTupleOf xs err a)
 
-doAll :: (Monad m, Allcc css) => SingL css -> ApplyZ css m a -> a -> m (Tupfor css a)
-doAll SN                    _   _ = return ()
-doAll (SC s) (AZ (App1 f, fs)) a = do
-  res1 <- f a
-  rest <- doAll s (AZ fs) a
+runAllFunctions :: (Monad m, Allcc css) => SingL css -> Functions css err m a -> a -> m (NTupleOf css err a)
+runAllFunctions  SN                  _   _ = return ()
+runAllFunctions (SC s) (Functions (FunctionWithConstraints f, fs)) a = do
+  res1 <- runExceptT (f a)
+  rest <- runAllFunctions s (Functions fs) a
   return (res1, rest)
-
+-}
 -- ============================================================================
 
-myapp1 :: MonadIO m => ApplyFn1 m Int
+myapp1 :: MonadIO m => Function Int m Text
 myapp1 i = do
   liftIO (print i)
-  pure i
+  pure (T.pack (show i))
 
-myapp2 :: MonadPlus m => ApplyFn1 m Int
+myapp2 :: MonadPlus m => Function Int m Text
 myapp2 i = do
   guard (i > 0)
-  pure i
+  pure (T.pack (show i))
 
-twoFs :: ApplyZ '[ '[MonadIO m], '[MonadPlus m] ] m Int
-twoFs = AZ (App1 myapp1, (App1 myapp2, ()))
+twoFs :: Functions '[ '[MonadIO m], '[MonadPlus m] ] Int m Text
+twoFs  = Functions (FunctionWithConstraints myapp1, (FunctionWithConstraints myapp2, ()))
 
