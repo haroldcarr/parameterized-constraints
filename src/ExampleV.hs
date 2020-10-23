@@ -1,104 +1,119 @@
-{-# LANGUAGE ConstraintKinds     #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE ConstraintKinds      #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE GADTs                #-}
+{-# LANGUAGE KindSignatures       #-}
+{-# LANGUAGE PolyKinds            #-}
+{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module ExampleV where
 
 ------------------------------------------------------------------------------
-import           Control.Monad.Except
-import           Data.Text            as T
-import           GHC.Exts             (Constraint)
+import           Control.Monad
+import           Control.Monad.IO.Class
+import           Data.Text              as T
+import           GHC.Exts               (Constraint)
 ------------------------------------------------------------------------------
 
 -- see test/ExampleVSpec.hs for usage
 
 ------------------------------------------------------------------------------
 
-type Function i m a = i -> m a
+type Function m i o = i -> m o
 
 type family ListOfConstraintsToConstraint (cs :: [Constraint]) :: Constraint where
   ListOfConstraintsToConstraint        '[]   = ()
   ListOfConstraintsToConstraint   (c ': cs)  = (c, ListOfConstraintsToConstraint cs)
 
-newtype FunctionWithConstraints cs i m a =
-  FunctionWithConstraints (ListOfConstraintsToConstraint cs => Function i m a)
+newtype FunctionWithConstraints m cs i o =
+  FunctionWithConstraints (ListOfConstraintsToConstraint cs => Function m i o)
 
-type family FunctionsWithConstraints (css :: [[Constraint]]) (i :: *) (m :: * -> *) (a :: *)
+type family Fst (k :: (a,b,c)) where Fst '(a,b,c) = a
+type family Snd (k :: (a,b,c)) where Snd '(a,b,c) = b
+type family Thr (k :: (a,b,c)) where Thr '(a,b,c) = c
+
+type family FunctionsWithConstraints (m :: * -> *) (cios :: [([Constraint],*,*)])
  where
-  FunctionsWithConstraints        '[]  i m a = ()
-  FunctionsWithConstraints (cs ': css) i m a =
-    (FunctionWithConstraints cs i m a, FunctionsWithConstraints css i m a)
+  FunctionsWithConstraints  _          '[]  = ()
+  FunctionsWithConstraints  m (cio ': cios) =
+    ( FunctionWithConstraints m (Fst cio) (Snd cio) (Thr cio)
+    , FunctionsWithConstraints m cios )
 
-data Functions (css :: [[Constraint]]) (i :: *) (m :: * -> *) (a :: *) where
-  Functions :: FunctionsWithConstraints css i m a -> Functions css i m a
+data Functions (m :: * -> *) (cios :: [([Constraint],*,*)]) where
+  Functions :: FunctionsWithConstraints m cios -> Functions m cios
 
 ------------------------------------------------------------------------------
 
 data Nat = Z | S Nat
 
-data Ix :: Nat -> [k] -> * where
-  IZ ::            Ix  'Z    (x ': xs)
-  IS :: Ix n xs -> Ix ('S n) (x ': xs)
+data Ix :: Nat -> [cio] -> * where
+  IZ ::              Ix  'Z    (cio ': cios)
+  IS :: Ix n cios -> Ix ('S n) (cio ': cios)
 
 type family Lookup (n :: Nat) (xs :: [k]) :: k where
-  Lookup  'Z    (x ': _xs) = x
-  Lookup ('S n) (x ':  xs) = Lookup n xs
+  Lookup  'Z    (k ':  _) = k
+  Lookup ('S n) (_ ': ks) = Lookup n ks
 
-type NthConstraint ix css = ListOfConstraintsToConstraint (Lookup ix css)
+type NthConstraint n css = ListOfConstraintsToConstraint (Fst (Lookup n css))
 
 runNthFunction
-  :: (Monad m, NthConstraint n css)
-  => Ix n css
-  -> Functions css i m a
-  -> i
-  -> m a
+  :: forall (m :: * -> *) (n :: Nat) (cios :: [([Constraint],*,*)])
+   . (Monad m, NthConstraint n cios)
+  => Ix             n cios
+  -> Functions      m cios
+  -> Snd    (Lookup n cios)
+  -> m (Thr (Lookup n cios))
 runNthFunction  IZ     (Functions (FunctionWithConstraints f,  _)) i = f i
-runNthFunction (IS ix) (Functions (_                        , fs)) a =
-  runNthFunction ix (Functions fs) a
+runNthFunction (IS ix) (Functions (_                        , fs)) i =
+  runNthFunction ix (Functions fs) i
 
 ------------------------------------------------------------------------------
 
-type family ListOfListOfConstraintsToConstraint (cs :: [[Constraint]]) :: Constraint where
-  ListOfListOfConstraintsToConstraint        '[]  = ()
-  ListOfListOfConstraintsToConstraint (cs ': css) =
-    (ListOfConstraintsToConstraint cs, ListOfListOfConstraintsToConstraint css)
+type family AllConstraintsFrom (cios :: [([Constraint],*,*)]) :: Constraint where
+  AllConstraintsFrom          '[]  = ()
+  AllConstraintsFrom (cio ': cios) =
+    (ListOfConstraintsToConstraint (Fst cio), AllConstraintsFrom cios)
 
-{- For parameterized err to work, need to index the return value.
-   In that case, might as well fully generalize return value (not just Either).
-data SingL :: [k] -> * where
-  SN ::             SingL      '[]
-  SC :: SingL xs -> SingL (x ': xs)
+data SingL :: [cio] -> * where
+  SN ::               SingL      '[]
+  SC :: SingL cios -> SingL (cio ': cios)
 
-type family NTupleOf (css :: [k]) (err :: *) (a :: *) :: * where
-  NTupleOf      '[]  err a = ()
-  NTupleOf (_ ': xs) err a = (Either err a, NTupleOf xs err a)
+type family Inputs (cios :: [([Constraint],*,*)]) :: * where
+  Inputs          '[]  = ()
+  Inputs (cio ': cios) = (Snd cio, Inputs cios)
 
-runAllFunctions :: (Monad m, Allcc css) => SingL css -> Functions css err m a -> a -> m (NTupleOf css err a)
-runAllFunctions  SN                  _   _ = return ()
-runAllFunctions (SC s) (Functions (FunctionWithConstraints f, fs)) a = do
-  res1 <- runExceptT (f a)
-  rest <- runAllFunctions s (Functions fs) a
-  return (res1, rest)
--}
+type family Outputs (cios :: [([Constraint],*,*)]) :: * where
+  Outputs          '[]  = ()
+  Outputs (cio ': cios) = (Thr cio, Outputs cios)
+
+runAllFunctions
+  :: (Monad m, AllConstraintsFrom cios)
+  => SingL       cios
+  -> Functions m cios
+  -> Inputs      cios
+  -> m (Outputs  cios)
+runAllFunctions  SN                                            _       _  = pure ()
+runAllFunctions (SC s) (Functions (FunctionWithConstraints f, fs)) (i,is) = do
+  res1 <- f i
+  rest <- runAllFunctions s (Functions fs) is
+  pure (res1, rest)
+
 -- ============================================================================
 
-myapp1 :: MonadIO m => Function Int m Text
-myapp1 i = do
-  liftIO (print i)
-  pure (T.pack (show i))
+f1 :: MonadIO m => Function m Text Int
+f1 t = do
+  liftIO (print t)
+  pure (read (T.unpack t))
 
-myapp2 :: MonadPlus m => Function Int m Text
-myapp2 i = do
-  guard (i > 0)
-  pure (T.pack (show i))
+f2 :: (MonadPlus m, Num a, Ord a, Show a) => Function m (a,a) Text
+f2 (n1, n2) = do
+  guard (n1 > n2)
+  pure (T.pack (show (n1 + n2)))
 
-twoFs :: Functions '[ '[MonadIO m], '[MonadPlus m] ] Int m Text
-twoFs  = Functions (FunctionWithConstraints myapp1, (FunctionWithConstraints myapp2, ()))
-
+twoFs :: Functions (m :: * -> *)
+                   '[ '( '[ MonadIO m ]                        ,  Text,  Int)
+                    , '( '[ MonadPlus m, Num a, Ord a, Show a ], (a,a) , Text)
+                    ]
+twoFs  = Functions (FunctionWithConstraints f1, (FunctionWithConstraints f2, ()))
