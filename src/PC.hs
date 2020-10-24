@@ -8,17 +8,10 @@
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module ExampleV where
+module PC where
 
 ------------------------------------------------------------------------------
-import           Control.Monad
-import           Control.Monad.IO.Class
-import           Data.Text              as T
-import           GHC.Exts               (Constraint)
-------------------------------------------------------------------------------
-
--- see test/ExampleVSpec.hs for usage
-
+import           GHC.Exts (Constraint)
 ------------------------------------------------------------------------------
 
 type Function m i o = i -> m o
@@ -30,15 +23,15 @@ type family ListOfConstraintsToConstraint (cs :: [Constraint]) :: Constraint whe
 newtype FunctionWithConstraints m cs i o =
   FunctionWithConstraints (ListOfConstraintsToConstraint cs => Function m i o)
 
-type family Fst (k :: (a,b,c)) where Fst '(a,b,c) = a
-type family Snd (k :: (a,b,c)) where Snd '(a,b,c) = b
-type family Thr (k :: (a,b,c)) where Thr '(a,b,c) = c
+type family GetConstraints (k :: ([Constraint],*,*)) where GetConstraints '(a,_,_) = a
+type family GetInputs      (k :: ([Constraint],*,*)) where GetInputs      '(_,b,_) = b
+type family GetOutput      (k :: ([Constraint],*,*)) where GetOutput      '(_,_,c) = c
 
 type family FunctionsWithConstraints (m :: * -> *) (cios :: [([Constraint],*,*)])
  where
   FunctionsWithConstraints  _          '[]  = ()
   FunctionsWithConstraints  m (cio ': cios) =
-    ( FunctionWithConstraints m (Fst cio) (Snd cio) (Thr cio)
+    ( FunctionWithConstraints m (GetConstraints cio) (GetInputs cio) (GetOutput cio)
     , FunctionsWithConstraints m cios )
 
 data Functions (m :: * -> *) (cios :: [([Constraint],*,*)]) where
@@ -56,25 +49,25 @@ type family Lookup (n :: Nat) (xs :: [k]) :: k where
   Lookup  'Z    (k ':  _) = k
   Lookup ('S n) (_ ': ks) = Lookup n ks
 
-type NthConstraint n css = ListOfConstraintsToConstraint (Fst (Lookup n css))
+type NthConstraints n css = ListOfConstraintsToConstraint (GetConstraints (Lookup n css))
 
 runNthFunction
   :: forall (m :: * -> *) (n :: Nat) (cios :: [([Constraint],*,*)])
-   . (Monad m, NthConstraint n cios)
+   . (Monad m, NthConstraints n cios)
   => Ix             n cios
   -> Functions      m cios
-  -> Snd    (Lookup n cios)
-  -> m (Thr (Lookup n cios))
+  -> GetInputs    (Lookup n cios)
+  -> m (GetOutput (Lookup n cios))
 runNthFunction  IZ     (Functions (FunctionWithConstraints f,  _)) i = f i
 runNthFunction (IS ix) (Functions (_                        , fs)) i =
   runNthFunction ix (Functions fs) i
 
 ------------------------------------------------------------------------------
 
-type family AllConstraintsFrom (cios :: [([Constraint],*,*)]) :: Constraint where
-  AllConstraintsFrom          '[]  = ()
-  AllConstraintsFrom (cio ': cios) =
-    (ListOfConstraintsToConstraint (Fst cio), AllConstraintsFrom cios)
+type family AllConstraints (cios :: [([Constraint],*,*)]) :: Constraint where
+  AllConstraints          '[]  = ()
+  AllConstraints (cio ': cios) =
+    (ListOfConstraintsToConstraint (GetConstraints cio), AllConstraints cios)
 
 data SingL :: [cio] -> * where
   SN ::               SingL      '[]
@@ -82,14 +75,14 @@ data SingL :: [cio] -> * where
 
 type family Inputs (cios :: [([Constraint],*,*)]) :: * where
   Inputs          '[]  = ()
-  Inputs (cio ': cios) = (Snd cio, Inputs cios)
+  Inputs (cio ': cios) = (GetInputs cio, Inputs cios)
 
 type family Outputs (cios :: [([Constraint],*,*)]) :: * where
   Outputs          '[]  = ()
-  Outputs (cio ': cios) = (Thr cio, Outputs cios)
+  Outputs (cio ': cios) = (GetOutput cio, Outputs cios)
 
 runAllFunctions
-  :: (Monad m, AllConstraintsFrom cios)
+  :: (Monad m, AllConstraints cios)
   => SingL       cios
   -> Functions m cios
   -> Inputs      cios
@@ -99,21 +92,3 @@ runAllFunctions (SC s) (Functions (FunctionWithConstraints f, fs)) (i,is) = do
   res1 <- f i
   rest <- runAllFunctions s (Functions fs) is
   pure (res1, rest)
-
--- ============================================================================
-
-f1 :: MonadIO m => Function m Text Int
-f1 t = do
-  liftIO (print t)
-  pure (read (T.unpack t))
-
-f2 :: (MonadPlus m, Num a, Ord a, Show a) => Function m (a,a) Text
-f2 (n1, n2) = do
-  guard (n1 > n2)
-  pure (T.pack (show (n1 + n2)))
-
-twoFs :: Functions (m :: * -> *)
-                   '[ '( '[ MonadIO m ]                        ,  Text,  Int)
-                    , '( '[ MonadPlus m, Num a, Ord a, Show a ], (a,a) , Text)
-                    ]
-twoFs  = Functions (FunctionWithConstraints f1, (FunctionWithConstraints f2, ()))

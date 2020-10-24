@@ -5,7 +5,7 @@
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Example2 where
+module OldStuff.Example2Spec where
 
 ------------------------------------------------------------------------------
 import           Control.Exception
@@ -14,10 +14,9 @@ import           Control.Monad.RWS.Strict
 import           Data.Text                as T
 import           Data.Text.IO             as T
 import           GHC.Exts                 (Constraint)
-------------------------------------------------------------------------------
+import           Test.Hspec
 
--- see test/Example2Spec.hs for usage
-
+default (Text)
 ------------------------------------------------------------------------------
 
 type ApplyFn1 m a = a        -> ExceptT Text m a
@@ -74,3 +73,26 @@ twoFuns  = Apply2
               throwError $ "apply2 IOerr/Left/throwError: " <> T.pack (show e)
         "err" -> throwError "apply2: throwError \"err\""
         z     -> pure     $ "apply2: pure \"" <> z <> "\"")
+
+------------------------------------------------------------------------------
+spec :: Spec
+spec  = do
+  (s1  ,w1  ) <- runIO $ doIt2 twoFuns "expect Right"
+  (s1' ,w1' ) <- runIO $ doIt2 twoFuns "err"
+  (s1'',w1'') <- runIO $ doIt2 twoFuns "IOerr"
+
+  describe "twoFuns" $ do
+    it "expect Right" $ (s1,w1) `shouldBe`
+      ( "apply2: pure \"expect Right\""
+      , ["useApply2/apply1: got a Right"
+        ,"useApply2/apply2: got a Right"])
+
+    it "err" $ (s1',w1') `shouldBe`
+      ( "err"
+      , ["useApply2/apply1: got a Left: apply2/pure: throwError \"err\""
+        ,"useApply2/apply2: got a Left: apply2: throwError \"err\""])
+
+    it "IOerr" $ (s1'',w1'') `shouldBe`
+      ( "IOerr"
+      , ["useApply2/apply1: got a Left: " -- the space is mzero for Text
+        ,"useApply2/apply2: got a Left: apply2 IOerr/Left/throwError: IOerr: openFile: does not exist (No such file or directory)"])

@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes            #-}
 
-module ExampleWithRaftTypes.RaftTypes where
+module OldStuff.ExampleWithRaftTypes.RaftTypes where
 
 ------------------------------------------------------------------------------
 import           Control.Monad.Except
@@ -34,8 +34,7 @@ mkRaftStateE   = RaftState Leader (Term 0) (Just (NodeId 0)) (AppStates [] [])
 data RaftEnv m a = RaftEnv
   { _clusterSize :: !Int
   , _quorumSize  :: !Int
-  , _rs          :: !(RaftSpec (Raft m a) a)
-  }
+  , _rs          :: !(RaftSpec (Raft m a) a) }
 mkRaftEnv :: Monad m => ASAPD a -> RaftEnv m a
 mkRaftEnv a = RaftEnv 5 4 (RaftSpec a (\_ -> return ()))
 

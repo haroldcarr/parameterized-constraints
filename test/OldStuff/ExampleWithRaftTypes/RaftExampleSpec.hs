@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module ExampleWithRaftTypes.RaftExampleSpec where
+module OldStuff.ExampleWithRaftTypes.RaftExampleSpec where
 
 ------------------------------------------------------------------------------
-import           ExampleWithRaftTypes.RaftExample
+import           OldStuff.ExampleWithRaftTypes.RaftExample
 ------------------------------------------------------------------------------
 import           Data.Text
 import           Test.Hspec

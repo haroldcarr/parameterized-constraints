@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c6db212de3b596818931e2be971d87da62e8f911a9e339d7545c1d6110c58713
+-- hash: b2c48d47b4b0724eeaa68b82d44ad53ae4fce43cbd78879ff72512e24bbe354b
 
 name:           parameterized-constraints
 version:        0.1.0.0
@@ -14,12 +14,7 @@ build-type:     Simple
 
 library
   exposed-modules:
-      Example
-      Example2
-      ExampleV
-      ExampleWithRaftTypes.RaftExample
-      ExampleWithRaftTypes.RaftTypes
-      ListOfConstraints
+      PC
   other-modules:
       Paths_parameterized_constraints
   hs-source-dirs:
@@ -27,20 +22,18 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths
   build-depends:
       base >=4.7 && <5
-    , bytestring
-    , mtl
-    , random
-    , text
   default-language: Haskell2010
 
 test-suite t
   type: exitcode-stdio-1.0
   main-is: hspec.hs
   other-modules:
-      Example2Spec
-      ExampleSpec
-      ExampleVSpec
-      ExampleWithRaftTypes.RaftExampleSpec
+      OldStuff.Example2Spec
+      OldStuff.ExampleWithRaftTypes.RaftExample
+      OldStuff.ExampleWithRaftTypes.RaftExampleSpec
+      OldStuff.ExampleWithRaftTypes.RaftTypes
+      PCSpec
+      PCUseInsideRWSTSpec
       Paths_parameterized_constraints
   hs-source-dirs:
       test
@@ -51,6 +44,5 @@ test-suite t
     , hspec
     , mtl
     , parameterized-constraints
-    , random
     , text
   default-language: Haskell2010

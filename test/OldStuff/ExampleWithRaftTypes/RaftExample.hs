@@ -5,10 +5,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
 
-module ExampleWithRaftTypes.RaftExample where
+module OldStuff.ExampleWithRaftTypes.RaftExample where
 
 ------------------------------------------------------------------------------
-import           ExampleWithRaftTypes.RaftTypes
+import           OldStuff.ExampleWithRaftTypes.RaftTypes
 ------------------------------------------------------------------------------
 import           Control.Monad.Except
 import           Control.Monad.RWS.Strict

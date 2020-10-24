@@ -13,10 +13,6 @@ ghc-options:
 
 dependencies:
 - base >= 4.7 && < 5
-- bytestring
-- mtl
-- random
-- text
 
 library:
   source-dirs: src
@@ -32,5 +28,8 @@ tests:
     main:                hspec.hs
     ghc-options:         *exe-ghc-options
     dependencies:
+    - bytestring
     - hspec
     - parameterized-constraints
+    - mtl
+    - text
