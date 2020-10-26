@@ -5,6 +5,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 module PCUseInsideRWSTSpec where
 
@@ -24,33 +25,57 @@ f1 t = do
   liftIO (print t)
   pure (read (T.unpack t))
 
-fFun :: Functions (m :: * -> *) '[ '( '[ MonadIO m ], Text, Int ) ]
-fFun  = Functions (FunctionWithConstraints f1, ())
+f2 :: Monad   m => Function m Int  Int
+f2 i = pure (i * 2)
 
-main :: IO ()
+fFun :: Functions (m :: * -> *) '[ '( '[ MonadIO m ], Text, Int )
+                                 --, '( '[ Monad   m ], Int , Int )
+                                 ]
+fFun  = Functions (FunctionWithConstraints f1
+                  --, FunctionWithConstraints f2
+                  , ()
+                  )
+
+
+main :: IO (Text, [Text])
 main  = do
-  (_,s,w) <- top fFun "main"
-  print w
-  print s
+  (_,s,w) <- top fFun IZ -- (IZ, IS IZ)
+  pure (s, w)
 
-{-# ANN top ("HLint: ignore Eta reduce"::String) #-}
 top
-  :: (AllConstraints cios, MonadIO m)
+  :: ( MonadIO m
+     , NthConstraints n1 cios, GetInputs (Lookup n1 cios) ~ Text, GetOutput (Lookup n1 cios) ~ Int
+     --, NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Text, GetOutput (Lookup n2 cios) ~ Int
+     )
   => Functions m cios
-  -> Text
+  -> Ix n1 cios --(Ix n1 cios, Ix n2 cios)
   -> m ((), Text, [Text])
-top funs a = runRWST (topM funs) "X" a
+top funs ixs = runRWST (topM funs ixs) () "initial state"
 
 topM
- :: (AllConstraints cios, Monad m)
+  :: ( Monad m
+     , NthConstraints n1 cios, GetInputs (Lookup n1 cios) ~ Text, GetOutput (Lookup n1 cios) ~ Int
+     --, NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Int , GetOutput (Lookup n2 cios) ~ Int
+     )
  => Functions m cios
- -> RWST Text [Text] a m ()
-topM funs = do
-  --let res = runNthFunction IZ funs "InputTo" -- ***** RIGHT HERE *****
+ -> Ix n1 cios --(Ix n1 cios, Ix n2 cios)
+ -> RWST () [Text] Text m ()
+topM funs
+     ix1
+     --(ix1, ix2)
+     = do
+  s <- get
+  tell [s]
+  r1 <- lift $ (T.pack . show) <$> runNthFunction ix1 funs ("45"::Text)
+  tell [r1]
+  put   r1
+  --r2 <- lift $ (T.pack . show) <$> runNthFunction ix2 funs 2
+  --tell [r2]
+  --put   r2
   pure ()
 
 spec :: Spec
 spec  = do
   x <- runIO main
-  describe "spec" $
-    it "stub" $ x `shouldBe` ()
+  describe "PCUseInsideRWSTSpec" $
+    it "main" $ x `shouldBe` ("45", ["initial state", "45"])
