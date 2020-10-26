@@ -33,26 +33,24 @@ fFun :: Functions (m :: * -> *) '[ '( '[ MonadIO m ], Text, Int )
                                  ]
 fFun  = Functions (FunctionWithConstraints f1, (FunctionWithConstraints f2, ()))
 
+type CIOS cios n1 n2 =
+  ( NthConstraints n1 cios, GetInputs (Lookup n1 cios) ~ Text, GetOutput (Lookup n1 cios) ~ Int
+  , NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Int , GetOutput (Lookup n2 cios) ~ Int )
+
 main :: IO (Text, [Text])
 main  = do
   (_,s,w) <- top fFun (IZ, IS IZ)
   pure (s, w)
 
 top
-  :: ( MonadIO m
-     , NthConstraints n1 cios, GetInputs (Lookup n1 cios) ~ Text, GetOutput (Lookup n1 cios) ~ Int
-     , NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Int , GetOutput (Lookup n2 cios) ~ Int
-     )
+  :: (MonadIO m, CIOS cios n1 n2)
   => Functions m cios
   -> (Ix n1 cios, Ix n2 cios)
   -> m ((), Text, [Text])
 top funs ixs = runRWST (topM funs ixs) () "initial state"
 
 topM
-  :: ( Monad m
-     , NthConstraints n1 cios, GetInputs (Lookup n1 cios) ~ Text, GetOutput (Lookup n1 cios) ~ Int
-     , NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Int , GetOutput (Lookup n2 cios) ~ Int
-     )
+  :: (MonadIO m, CIOS cios n1 n2)
  => Functions m cios
  -> (Ix n1 cios, Ix n2 cios)
  -> RWST () [Text] Text m ()
