@@ -29,53 +29,46 @@ f2 :: Monad   m => Function m Int  Int
 f2 i = pure (i * 2)
 
 fFun :: Functions (m :: * -> *) '[ '( '[ MonadIO m ], Text, Int )
-                                 --, '( '[ Monad   m ], Int , Int )
+                                 , '( '[ Monad   m ], Int , Int )
                                  ]
-fFun  = Functions (FunctionWithConstraints f1
-                  --, FunctionWithConstraints f2
-                  , ()
-                  )
-
+fFun  = Functions (FunctionWithConstraints f1, (FunctionWithConstraints f2, ()))
 
 main :: IO (Text, [Text])
 main  = do
-  (_,s,w) <- top fFun IZ -- (IZ, IS IZ)
+  (_,s,w) <- top fFun (IZ, IS IZ)
   pure (s, w)
 
 top
   :: ( MonadIO m
      , NthConstraints n1 cios, GetInputs (Lookup n1 cios) ~ Text, GetOutput (Lookup n1 cios) ~ Int
-     --, NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Text, GetOutput (Lookup n2 cios) ~ Int
+     , NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Int , GetOutput (Lookup n2 cios) ~ Int
      )
   => Functions m cios
-  -> Ix n1 cios --(Ix n1 cios, Ix n2 cios)
+  -> (Ix n1 cios, Ix n2 cios)
   -> m ((), Text, [Text])
 top funs ixs = runRWST (topM funs ixs) () "initial state"
 
 topM
   :: ( Monad m
      , NthConstraints n1 cios, GetInputs (Lookup n1 cios) ~ Text, GetOutput (Lookup n1 cios) ~ Int
-     --, NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Int , GetOutput (Lookup n2 cios) ~ Int
+     , NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Int , GetOutput (Lookup n2 cios) ~ Int
      )
  => Functions m cios
- -> Ix n1 cios --(Ix n1 cios, Ix n2 cios)
+ -> (Ix n1 cios, Ix n2 cios)
  -> RWST () [Text] Text m ()
-topM funs
-     ix1
-     --(ix1, ix2)
-     = do
+topM funs (ix1, ix2) = do
   s <- get
   tell [s]
   r1 <- lift $ (T.pack . show) <$> runNthFunction ix1 funs ("45"::Text)
   tell [r1]
   put   r1
-  --r2 <- lift $ (T.pack . show) <$> runNthFunction ix2 funs 2
-  --tell [r2]
-  --put   r2
+  r2 <- lift $ (T.pack . show) <$> runNthFunction ix2 funs 2
+  tell [r2]
+  put   r2
   pure ()
 
 spec :: Spec
 spec  = do
   x <- runIO main
   describe "PCUseInsideRWSTSpec" $
-    it "main" $ x `shouldBe` ("45", ["initial state", "45"])
+    it "main" $ x `shouldBe` ("4",["initial state","45","4"])
