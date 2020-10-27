@@ -47,20 +47,43 @@ top
   => Functions m cios
   -> (Ix n1 cios, Ix n2 cios)
   -> m ((), Text, [Text])
-top funs ixs = runRWST (topM funs ixs) () "initial state"
+top funs ixs = runRWST (topM ixs) funs "initial state"
 
 topM
   :: (MonadIO m, CIOS cios n1 n2)
- => Functions m cios
- -> (Ix n1 cios, Ix n2 cios)
- -> RWST () [Text] Text m ()
-topM funs (ix1, ix2) = do
+  => (Ix n1 cios, Ix n2 cios)
+  -> RWST (Functions m cios) [Text] Text m ()
+topM ixs = do
+  useF1 ixs
+  useF2ViaIntermediary ixs
+
+useF1
+  :: (MonadIO m, CIOS cios n1 n2)
+  => (Ix n1 cios, Ix n2 cios)
+  -> RWST (Functions m cios) [Text] Text m ()
+useF1 (ix1, _) = do
   s <- get
   tell [s]
-  r1 <- lift $ (T.pack . show) <$> runNthFunction ix1 funs ("45"::Text)
+  funs <- ask
+  r1 <- lift $ T.pack . show <$> runNthFunction ix1 funs "45"
   tell [r1]
   put   r1
-  r2 <- lift $ (T.pack . show) <$> runNthFunction ix2 funs 2
+
+useF2ViaIntermediary
+  :: (MonadIO m, CIOS cios n1 n2)
+  => (Ix n1 cios, Ix n2 cios)
+  -> RWST (Functions m cios) [Text] Text m ()
+useF2ViaIntermediary ixs = do
+  tell ["intermediary"]
+  useF2 ixs
+
+useF2
+  :: (MonadIO m, CIOS cios n1 n2)
+  => (Ix n1 cios, Ix n2 cios)
+  -> RWST (Functions m cios) [Text] Text m ()
+useF2 (_, ix2) = do
+  funs <- ask
+  r2 <- lift $ T.pack . show <$> runNthFunction ix2 funs 2
   tell [r2]
   put   r2
   pure ()
@@ -69,4 +92,4 @@ spec :: Spec
 spec  = do
   x <- runIO main
   describe "PCUseInsideRWSTSpec" $
-    it "main" $ x `shouldBe` ("4",["initial state","45","4"])
+    it "main" $ x `shouldBe` ("4",["initial state","45","intermediary","4"])
