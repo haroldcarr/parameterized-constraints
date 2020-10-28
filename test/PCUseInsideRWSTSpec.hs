@@ -58,19 +58,19 @@ topM ixs = do
   useF2ViaIntermediary ixs
 
 useF1
-  :: (MonadIO m, CIOS cios n1 n2)
+  :: (Monad m, CIOS cios n1 n2)
   => (Ix n1 cios, Ix n2 cios)
   -> RWST (Functions m cios) [Text] Text m ()
 useF1 (ix1, _) = do
   s <- get
-  tell [s]
+  tell ["useF1", "state", s]
   funs <- ask
-  r1 <- lift $ T.pack . show <$> runNthFunction ix1 funs "45"
-  tell [r1]
-  put   r1
+  r <- lift $ T.pack . show <$> runNthFunction ix1 funs "45"
+  tell ["useF1", "result", r]
+  put r
 
 useF2ViaIntermediary
-  :: (MonadIO m, CIOS cios n1 n2)
+  :: (Monad m, CIOS cios n1 n2)
   => (Ix n1 cios, Ix n2 cios)
   -> RWST (Functions m cios) [Text] Text m ()
 useF2ViaIntermediary ixs = do
@@ -78,18 +78,24 @@ useF2ViaIntermediary ixs = do
   useF2 ixs
 
 useF2
-  :: (MonadIO m, CIOS cios n1 n2)
+  :: ( Monad m
+     , NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Int , GetOutput (Lookup n2 cios) ~ Int)
   => (Ix n1 cios, Ix n2 cios)
   -> RWST (Functions m cios) [Text] Text m ()
 useF2 (_, ix2) = do
+  s <- get
+  tell ["useF2", "state", s]
   funs <- ask
-  r2 <- lift $ T.pack . show <$> runNthFunction ix2 funs 2
-  tell [r2]
-  put   r2
+  r <- lift $ T.pack . show <$> runNthFunction ix2 funs 2
+  tell ["useF2", "result", r]
+  put r
   pure ()
 
 spec :: Spec
 spec  = do
   x <- runIO main
   describe "PCUseInsideRWSTSpec" $
-    it "main" $ x `shouldBe` ("4",["initial state","45","intermediary","4"])
+    it "main" $ x `shouldBe`
+    ("4", ["useF1","state","initial state","useF1","result","45"
+          ,"intermediary"
+          ,"useF2","state","45","useF2","result","4"])
