@@ -33,9 +33,13 @@ fFun :: Functions (m :: * -> *) '[ '( '[ MonadIO m ], Text, Int )
                                  ]
 fFun  = Functions (FunctionWithConstraints f1, (FunctionWithConstraints f2, ()))
 
-type CIOS cios n1 n2 =
-  ( NthConstraints n1 cios, GetInputs (Lookup n1 cios) ~ Text, GetOutput (Lookup n1 cios) ~ Int
-  , NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Int , GetOutput (Lookup n2 cios) ~ Int )
+type F1Constraints cios n =
+  (NthConstraints n cios, GetInputs (Lookup n cios) ~ Text, GetOutput (Lookup n cios) ~ Int)
+
+type F2Constraints cios n =
+  (NthConstraints n cios, GetInputs (Lookup n cios) ~ Int , GetOutput (Lookup n cios) ~ Int)
+
+type CIOS cios n1 n2 = (F1Constraints cios n1, F2Constraints cios n2)
 
 main :: IO (Text, [Text])
 main  = do
@@ -58,7 +62,7 @@ topM ixs = do
   useF2ViaIntermediary ixs
 
 useF1
-  :: (Monad m, CIOS cios n1 n2)
+  :: (Monad m, F1Constraints cios n1)
   => (Ix n1 cios, Ix n2 cios)
   -> RWST (Functions m cios) [Text] Text m ()
 useF1 (ix1, _) = do
@@ -78,8 +82,7 @@ useF2ViaIntermediary ixs = do
   useF2 ixs
 
 useF2
-  :: ( Monad m
-     , NthConstraints n2 cios, GetInputs (Lookup n2 cios) ~ Int , GetOutput (Lookup n2 cios) ~ Int)
+  :: (Monad m, F2Constraints cios n2)
   => (Ix n1 cios, Ix n2 cios)
   -> RWST (Functions m cios) [Text] Text m ()
 useF2 (_, ix2) = do
