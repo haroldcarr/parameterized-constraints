@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b2c48d47b4b0724eeaa68b82d44ad53ae4fce43cbd78879ff72512e24bbe354b
+-- hash: 6c6db0b5562a3413cfffc4c0f90ca82018b5fc120716f69f200f4d72656029ba
 
 name:           parameterized-constraints
 version:        0.1.0.0
@@ -15,6 +15,7 @@ build-type:     Simple
 library
   exposed-modules:
       PC
+      PC2
   other-modules:
       Paths_parameterized_constraints
   hs-source-dirs:
@@ -32,6 +33,7 @@ test-suite t
       OldStuff.ExampleWithRaftTypes.RaftExample
       OldStuff.ExampleWithRaftTypes.RaftExampleSpec
       OldStuff.ExampleWithRaftTypes.RaftTypes
+      PC2Spec
       PCSpec
       PCUseInsideRWSTSpec
       Paths_parameterized_constraints

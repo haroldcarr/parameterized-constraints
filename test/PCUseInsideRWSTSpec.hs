@@ -41,23 +41,27 @@ type F2Constraints cios n =
 
 type CIOS cios n1 n2 = (F1Constraints cios n1, F2Constraints cios n2)
 
+-- application IO entry point
 main :: IO (Text, [Text])
 main  = do
-  (_,s,w) <- top fFun (IZ, IS IZ)
+  (_,s,w) <- ptfd (IZ, IS IZ) fFun appFun
   pure (s, w)
 
-top
+-- "ptfd" is a library that calls back to the given function.
+ptfd
   :: (MonadIO m, CIOS cios n1 n2)
-  => Functions m cios
-  -> (Ix n1 cios, Ix n2 cios)
+  => (Ix n1 cios, Ix n2 cios)
+  -> Functions m cios
+  -> ((MonadIO m, CIOS cios n1 n2) => (Ix n1 cios, Ix n2 cios) -> RWST (Functions m cios) [Text] Text m ())
   -> m ((), Text, [Text])
-top funs ixs = runRWST (topM ixs) funs "initial state"
+ptfd ixs funs callback = runRWST (callback ixs) funs "initial state"
 
-topM
+-- application monadic entry point
+appFun
   :: (MonadIO m, CIOS cios n1 n2)
   => (Ix n1 cios, Ix n2 cios)
   -> RWST (Functions m cios) [Text] Text m ()
-topM ixs = do
+appFun ixs = do
   useF1 ixs
   useF2ViaIntermediary ixs
 
@@ -66,12 +70,12 @@ useF1
   => (Ix n1 cios, Ix n2 cios)
   -> RWST (Functions m cios) [Text] Text m ()
 useF1 (ix1, _) = do
-  s <- get
+  s    <- get
   tell ["useF1", "state", s]
   funs <- ask
-  r <- lift $ T.pack . show <$> runNthFunction ix1 funs "45"
+  r    <- lift $ T.pack . show <$> runNthFunction ix1 funs "45"
   tell ["useF1", "result", r]
-  put r
+  put  r
 
 useF2ViaIntermediary
   :: (Monad m, CIOS cios n1 n2)
@@ -86,12 +90,12 @@ useF2
   => (Ix n1 cios, Ix n2 cios)
   -> RWST (Functions m cios) [Text] Text m ()
 useF2 (_, ix2) = do
-  s <- get
+  s    <- get
   tell ["useF2", "state", s]
   funs <- ask
-  r <- lift $ T.pack . show <$> runNthFunction ix2 funs 2
+  r    <- lift $ T.pack . show <$> runNthFunction ix2 funs 2
   tell ["useF2", "result", r]
-  put r
+  put  r
   pure ()
 
 spec :: Spec
